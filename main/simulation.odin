@@ -9,20 +9,19 @@ import rl "vendor:raylib"
 MAX_VELOCITY_MODULUS :: 100
 
 Simulation :: struct {
-	// PERF: Podrías ser un SOA
-	particles: []Particle,
+	particles: #soa[]Particle,
 	hash_grid: HashGrid,
 }
 
 sim_init :: proc(num_particles, cellsize, num_cells: int) -> Simulation {
 	return Simulation {
-		particles = make([]Particle, num_particles),
+		particles = make(#soa[]Particle, num_particles),
 		hash_grid = new_hash_grid(cellsize, size = num_cells, num_particles = num_particles),
 	}
 }
 
 sim_instantiate_particles :: proc(
-	particles: []Particle,
+	particles: ^#soa[]Particle,
 	position: Vec2f = Vec2f{0, 0},
 	padding: f32 = 15.0,
 ) {
@@ -35,11 +34,11 @@ sim_instantiate_particles :: proc(
 	for y in 0 ..< num_particles_side_int {
 		for x in 0 ..< num_particles_side_int {
 
-			particles[y * num_particles_side_int + x] = new_particle(
-				position = position + Vec2f{f32(x) * padding, f32(y) * padding},
-				velocity = (Vec2f{(rand.float32() * 2 - 1), rand.float32() * 2 - 1} *
-					MAX_VELOCITY_MODULUS),
-			)
+			index := y * num_particles_side_int + x
+			particles.position[index] = position + Vec2f{f32(x) * padding, f32(y) * padding}
+			particles.velocity[index] =
+				(Vec2f{(rand.float32() * 2 - 1), rand.float32() * 2 - 1} * MAX_VELOCITY_MODULUS)
+			particles.color[index] = PARTICLE_DEFAULT_COLOR
 		}
 	}
 
@@ -69,7 +68,7 @@ sim_colorize_neighbours :: proc(simulation: ^Simulation, position: Vec2f, color:
 	}
 }
 
-sim_predict_positions :: proc(particles: []Particle, dt: f32, velocity_damping: f32 = 1.0) {
+sim_predict_positions :: proc(particles: #soa[]Particle, dt: f32, velocity_damping: f32 = 1.0) {
 	for &particle in particles {
 		particle.prev_position = particle.position
 		position_delta := particle.velocity * dt * velocity_damping
@@ -78,13 +77,13 @@ sim_predict_positions :: proc(particles: []Particle, dt: f32, velocity_damping: 
 	}
 }
 
-sim_compute_next_velocity :: proc(particles: []Particle, dt: f32) {
+sim_compute_next_velocity :: proc(particles: #soa[]Particle, dt: f32) {
 	for &particle in particles {
 		particle.velocity = (particle.position - particle.prev_position) / dt
 	}
 }
 
-sim_world_bound_collisions_resolve :: proc(particles: []Particle, world_size: Vec2f) {
+sim_world_bound_collisions_resolve :: proc(particles: #soa[]Particle, world_size: Vec2f) {
 	for &particle in particles {
 		if particle.position.x < 0 || particle.position.x > world_size.x {
 			particle.velocity.x = -particle.velocity.x
@@ -100,14 +99,14 @@ sim_world_bound_collisions_resolve :: proc(particles: []Particle, world_size: Ve
 
 }
 
-sim_update :: proc(particles: []Particle, dt: f32, world_size: Vec2f) {
+sim_update :: proc(particles: #soa[]Particle, dt: f32, world_size: Vec2f) {
 	sim_predict_positions(particles, dt)
 	sim_compute_next_velocity(particles, dt)
 	sim_world_bound_collisions_resolve(particles, world_size)
 }
 
 
-sim_draw :: proc(particles: []Particle) {
+sim_draw :: proc(particles: #soa[]Particle) {
 	for &particle in particles {
 		rl.DrawCircleV(particle.position, PARTICLE_RADIUS, particle.color)
 	}

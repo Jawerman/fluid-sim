@@ -79,7 +79,7 @@ new_hash_grid :: proc(cellsize, size, num_particles: int) -> HashGrid {
 }
 
 // Rellena 'indices' con la posición donde terminará cada celda en el array de particulas agrupadas por celda
-grid_fill_cell_indices :: proc(grid_hash: ^HashGrid, particles: []Particle) {
+grid_fill_cell_indices :: proc(grid_hash: ^HashGrid, particles: #soa[]Particle) {
 	slice.zero(grid_hash.cell_indices)
 
 	// indices tiene inicialmente la cuenta de elementos que hay en la celda
@@ -94,7 +94,7 @@ grid_fill_cell_indices :: proc(grid_hash: ^HashGrid, particles: []Particle) {
 	}
 }
 
-grid_add_particles :: proc(grid_hash: ^HashGrid, particles: []Particle) {
+grid_add_particles :: proc(grid_hash: ^HashGrid, particles: #soa[]Particle) {
 	grid_fill_cell_indices(grid_hash, particles)
 
 	// OPTIM: Quizá pueda usar el propio cell_indices para ir restando la cantidad de elementos en cada celda.

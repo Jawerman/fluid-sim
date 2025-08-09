@@ -37,7 +37,7 @@ main :: proc() {
 
 	// TODO: hay que liberar la memoria reservada, se puede usar una arena
 	sim := sim_init(NUM_PARTICLES, CELL_SIZE, NUM_CELLS)
-	sim_instantiate_particles(particles = sim.particles, position = Vec2f{250, 60})
+	sim_instantiate_particles(particles = &sim.particles, position = Vec2f{250, 60})
 
 	render_buffer := rl.LoadRenderTexture(SCREEN_WIDTH, SCREEN_HEIGHT)
 	defer rl.UnloadRenderTexture(render_buffer)
