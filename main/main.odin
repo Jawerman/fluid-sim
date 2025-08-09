@@ -8,9 +8,10 @@ SCREEN_HEIGHT :: 450
 WORLD_SIZE :: Vec2f{SCREEN_WIDTH, SCREEN_HEIGHT}
 PARTICLES_SQUARE_SIDE :: 50
 NUM_PARTICLES :: PARTICLES_SQUARE_SIDE * PARTICLES_SQUARE_SIDE
+PARTICLE_RADIUS :: 5
 
 NUM_CELLS :: 1000000
-CELL_SIZE :: 50
+CELL_SIZE :: 25
 
 Vec2f :: [2]f32
 Vec2i :: [2]int
@@ -44,7 +45,7 @@ main :: proc() {
 		initial_screen_size := Vec2f{f32(SCREEN_WIDTH), f32(SCREEN_HEIGHT)}
 
 		// HANDLE INPUT
-		mouse_pos := rl.GetMousePosition() * (initial_screen_size / screen_size)
+		mouse_pos := rl.GetMousePosition() * initial_screen_size / screen_size
 		if rl.IsMouseButtonPressed(.LEFT) {
 			log.log(.Info, "Mouse button pressed", mouse_pos)
 		}

@@ -23,6 +23,48 @@ HashGrid :: struct {
 	_last_available_cell_indices: []int,
 }
 
+HashGridIterator :: struct {
+	hash_grid:                ^HashGrid,
+	current_cell:             int,
+	current_particle_in_cell: int,
+	particles_indices:        [][]int,
+	_particles_indices:       [9][]int,
+}
+
+grid_init_neighbours_iterator :: proc(iter: ^HashGridIterator, position: Vec2f) {
+	coords := grid_coords_from_position(position, iter.hash_grid.cellsize)
+	index := 0
+
+	for i in -1 ..= 1 {
+		for j in -1 ..= 1 {
+			neighbour_hash := grid_coords_to_hash(coords + Vec2i{i, j}, iter.hash_grid.size)
+			if neighbour_hash < 0 || neighbour_hash >= len(iter.hash_grid.cell_indices) do continue
+			iter._particles_indices[index] = grid_get_cell_indices_slice(
+				iter.hash_grid,
+				neighbour_hash,
+			)
+			index += 1
+		}
+	}
+	iter.particles_indices = iter._particles_indices[:index]
+}
+
+grid_iterator_next :: proc(iter: ^HashGridIterator) -> (has_more: bool, particle_index: int) {
+	for iter.current_cell < len(iter.particles_indices) {
+		particle_indices_slice := iter.particles_indices[iter.current_cell]
+		particle_index := iter.current_particle_in_cell
+
+		if particle_index >= len(particle_indices_slice) {
+			iter.current_particle_in_cell = 0
+			iter.current_cell += 1
+			continue
+		}
+		iter.current_particle_in_cell += 1
+		return true, particle_indices_slice[particle_index]
+	}
+	return false, 0
+}
+
 new_hash_grid :: proc(cellsize, size, num_particles: int) -> HashGrid {
 	return HashGrid {
 		cellsize = cellsize,
@@ -39,7 +81,7 @@ grid_fill_cell_indices :: proc(grid_hash: ^HashGrid, particles: []Particle) {
 
 	// indices tiene inicialmente la cuenta de elementos que hay en la celda
 	for &particle in particles {
-		hash := grid_get_hash_from_position(particle.position, grid_hash.cellsize, grid_hash.size)
+		hash := grid_hash_from_position(particle.position, grid_hash.cellsize, grid_hash.size)
 		grid_hash.cell_indices[hash] += 1
 	}
 
@@ -65,7 +107,7 @@ grid_add_particles :: proc(grid_hash: ^HashGrid, particles: []Particle) {
 
 
 	for &particle, index in particles {
-		hash := grid_get_hash_from_position(particle.position, grid_hash.cellsize, grid_hash.size)
+		hash := grid_hash_from_position(particle.position, grid_hash.cellsize, grid_hash.size)
 		grid_hash._last_available_cell_indices[hash] -= 1
 
 		grid_hash.particle_indices[grid_hash._last_available_cell_indices[hash]] = index
@@ -77,19 +119,19 @@ grid_get_cell_indices_slice :: proc(grid_hash: ^HashGrid, cell_index: int) -> []
 	return grid_hash.particle_indices[initial_index:grid_hash.cell_indices[cell_index]]
 }
 
-grid_get_hash_from_position :: proc(position: Vec2f, cellsize: int, size: int) -> int {
-	coords := grid_get_grid_coords_from_position(position, cellsize)
-	return grid_index_to_hash(coords, size = size)
+grid_hash_from_position :: proc(position: Vec2f, cellsize: int, size: int) -> int {
+	coords := grid_coords_from_position(position, cellsize)
+	return grid_coords_to_hash(coords, size = size)
 }
 
-grid_get_grid_coords_from_position :: proc(position: Vec2f, cellsize: int) -> Vec2i {
+grid_coords_from_position :: proc(position: Vec2f, cellsize: int) -> Vec2i {
 	return Vec2i {
 		int(math.floor(position.x / f32(cellsize))),
 		int(math.floor(position.y / f32(cellsize))),
 	}
 }
 
-grid_index_to_hash :: proc(
+grid_coords_to_hash :: proc(
 	position: Vec2i,
 	size: int,
 	prime1: int = PRIME_1,

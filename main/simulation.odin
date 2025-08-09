@@ -48,23 +48,21 @@ sim_instantiate_particles :: proc(
 sim_colorize_neighbours :: proc(simulation: ^Simulation, position: Vec2f, color: rl.Color) {
 	grid_add_particles(&simulation.hash_grid, simulation.particles)
 
-	indices := grid_get_cell_indices_slice(
-		&simulation.hash_grid,
-		grid_get_hash_from_position(
-			position,
-			simulation.hash_grid.cellsize,
-			simulation.hash_grid.size,
-		),
-	)
+	iter := HashGridIterator {
+		hash_grid = &simulation.hash_grid,
+	}
+
+	grid_init_neighbours_iterator(&iter, position)
 
 	for &particle in simulation.particles {
 		particle.color = PARTICLE_DEFAULT_COLOR
 	}
 
-	for index in indices {
+	for has_more, index := grid_iterator_next(&iter);
+	    has_more;
+	    has_more, index = grid_iterator_next(&iter) {
 		simulation.particles[index].color = color
 	}
-
 }
 
 sim_predict_positions :: proc(particles: []Particle, dt: f32, velocity_damping: f32 = 1.0) {
@@ -107,6 +105,6 @@ sim_update :: proc(particles: []Particle, dt: f32, world_size: Vec2f) {
 
 sim_draw :: proc(particles: []Particle) {
 	for &particle in particles {
-		rl.DrawCircleV(particle.position, 5, particle.color)
+		rl.DrawCircleV(particle.position, PARTICLE_RADIUS, particle.color)
 	}
 }
