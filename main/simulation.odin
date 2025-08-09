@@ -1,6 +1,7 @@
 package main
 import "core:log"
 import "core:math"
+import "core:math/linalg"
 import "core:math/rand"
 
 import rl "vendor:raylib"
@@ -60,7 +61,11 @@ sim_colorize_neighbours :: proc(simulation: ^Simulation, position: Vec2f, color:
 	for has_more, index := grid_iterator_next(&iter);
 	    has_more;
 	    has_more, index = grid_iterator_next(&iter) {
-		simulation.particles[index].color = color
+		particle := &simulation.particles[index]
+		distance_squared := linalg.vector_length2(particle.position - position)
+
+		if (distance_squared > COLLISION_RADIUS_SQUARED) do continue
+		particle.color = color
 	}
 }
 
