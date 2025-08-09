@@ -7,6 +7,19 @@ import rl "vendor:raylib"
 
 MAX_VELOCITY_MODULUS :: 100
 
+Simulation :: struct {
+	// PERF: Podrías ser un SOA
+	particles: []Particle,
+	hash_grid: HashGrid,
+}
+
+sim_init :: proc(num_particles, cellsize, num_cells: int) -> Simulation {
+	return Simulation {
+		particles = make([]Particle, num_particles),
+		hash_grid = new_hash_grid(cellsize, size = num_cells, num_particles = num_particles),
+	}
+}
+
 sim_instantiate_particles :: proc(
 	particles: []Particle,
 	position: Vec2f = Vec2f{0, 0},
@@ -23,13 +36,33 @@ sim_instantiate_particles :: proc(
 
 			particles[y * num_particles_side_int + x] = new_particle(
 				position = position + Vec2f{f32(x) * padding, f32(y) * padding},
-				color = rl.BLUE,
 				velocity = (Vec2f{(rand.float32() * 2 - 1), rand.float32() * 2 - 1} *
 					MAX_VELOCITY_MODULUS),
-				// velocity = Vec2f{0, 0},
 			)
 
 		}
+	}
+
+}
+
+sim_colorize_neighbours :: proc(simulation: ^Simulation, position: Vec2f, color: rl.Color) {
+	grid_add_particles(&simulation.hash_grid, simulation.particles)
+
+	indices := grid_get_cell_indices_slice(
+		&simulation.hash_grid,
+		grid_get_hash_from_position(
+			position,
+			simulation.hash_grid.cellsize,
+			simulation.hash_grid.size,
+		),
+	)
+
+	for &particle in simulation.particles {
+		particle.color = PARTICLE_DEFAULT_COLOR
+	}
+
+	for index in indices {
+		simulation.particles[index].color = color
 	}
 
 }

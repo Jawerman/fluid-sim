@@ -6,9 +6,14 @@ SCREEN_WIDTH :: 800
 SCREEN_HEIGHT :: 450
 
 WORLD_SIZE :: Vec2f{SCREEN_WIDTH, SCREEN_HEIGHT}
-PARTICLES_SQUARE_SIDE :: 20
+PARTICLES_SQUARE_SIDE :: 50
+NUM_PARTICLES :: PARTICLES_SQUARE_SIDE * PARTICLES_SQUARE_SIDE
+
+NUM_CELLS :: 1000000
+CELL_SIZE :: 50
 
 Vec2f :: [2]f32
+Vec2i :: [2]int
 
 main :: proc() {
 	console_logger := log.create_console_logger()
@@ -23,23 +28,32 @@ main :: proc() {
 	rl.SetTargetFPS(60)
 	log.log(.Info, "Init")
 
+
 	particles := [PARTICLES_SQUARE_SIDE * PARTICLES_SQUARE_SIDE]Particle{}
-	sim_instantiate_particles(particles = particles[:], position = Vec2f{250, 60})
+
+	// TODO: hay que liberar la memoria reservada, se puede usar una arena
+	sim := sim_init(NUM_PARTICLES, CELL_SIZE, NUM_CELLS)
+	sim_instantiate_particles(particles = sim.particles, position = Vec2f{250, 60})
 
 	render_buffer := rl.LoadRenderTexture(SCREEN_WIDTH, SCREEN_HEIGHT)
 	defer rl.UnloadRenderTexture(render_buffer)
 
 	for !rl.WindowShouldClose() { 	// Detect window close button or ESC key
 		dt := rl.GetFrameTime()
+		screen_size := Vec2f{f32(rl.GetScreenWidth()), f32(rl.GetScreenHeight())}
+		initial_screen_size := Vec2f{f32(SCREEN_WIDTH), f32(SCREEN_HEIGHT)}
+
 		// HANDLE INPUT
-		mouse_pos := rl.GetMousePosition()
+		mouse_pos := rl.GetMousePosition() * (initial_screen_size / screen_size)
 		if rl.IsMouseButtonPressed(.LEFT) {
 			log.log(.Info, "Mouse button pressed", mouse_pos)
 		}
 
 		// UPDATE
 		if dt > 0 {
-			sim_update(particles[:], dt, WORLD_SIZE)
+			// TODO: Lo mismo hay que mover el WORLD_SIZE dentro de la simulación
+			sim_update(sim.particles, dt, WORLD_SIZE)
+			grid_add_particles(&sim.hash_grid, sim.particles)
 		}
 
 		// DRAWING
@@ -49,7 +63,8 @@ main :: proc() {
 
 			rl.ClearBackground(rl.DARKGRAY)
 
-			sim_draw(particles[:])
+			sim_colorize_neighbours(&sim, mouse_pos, rl.RED)
+			sim_draw(sim.particles)
 		}
 
 		{
@@ -64,7 +79,7 @@ main :: proc() {
 					f32(render_buffer.texture.width),
 					f32(render_buffer.texture.height) * -1,
 				},
-				rl.Rectangle{0, 0, f32(rl.GetScreenWidth()), f32(rl.GetScreenHeight())},
+				rl.Rectangle{0, 0, screen_size.x, screen_size.y},
 				Vec2f{},
 				0,
 				rl.WHITE,
