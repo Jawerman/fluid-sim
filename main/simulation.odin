@@ -39,7 +39,6 @@ sim_instantiate_particles :: proc(
 				velocity = (Vec2f{(rand.float32() * 2 - 1), rand.float32() * 2 - 1} *
 					MAX_VELOCITY_MODULUS),
 			)
-
 		}
 	}
 

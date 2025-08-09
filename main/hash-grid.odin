@@ -4,8 +4,11 @@ import "core:math"
 import "core:mem"
 import "core:slice"
 
-PRIME_1 :: 6614058611
-PRIME_2 :: 7528850467
+// PRIME_1 :: 6614058611
+// PRIME_2 :: 7528850467
+
+PRIME_1 :: 73856093
+PRIME_2 :: 19349663
 
 HashGrid :: struct {
 	cellsize:                     int,
@@ -121,7 +124,7 @@ grid_get_cell_indices_slice :: proc(grid_hash: ^HashGrid, cell_index: int) -> []
 
 grid_hash_from_position :: proc(position: Vec2f, cellsize: int, size: int) -> int {
 	coords := grid_coords_from_position(position, cellsize)
-	return grid_coords_to_hash(coords, size = size)
+	return grid_coords_to_hash(coords, size)
 }
 
 grid_coords_from_position :: proc(position: Vec2f, cellsize: int) -> Vec2i {
