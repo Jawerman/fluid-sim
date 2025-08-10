@@ -109,8 +109,11 @@ main :: proc() {
 			if dt > 0 {
 				// TODO: Lo mismo hay que mover el WORLD_SIZE dentro de la simulación
 
-				// sim_update(&sim, 0.3, WORLD_SIZE)
-				sim_update(&sim, dt * 10, WORLD_SIZE)
+				interaction_point := rl.IsMouseButtonDown(.LEFT) ? mouse_pos : Vec2f{-1, -1}
+
+				for i in 0 ..< SIMULATION_LOOP_ITERATIONS {
+					sim_update(&sim, 0.2, WORLD_SIZE, interaction_point)
+				}
 			}
 		}
 

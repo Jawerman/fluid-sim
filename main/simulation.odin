@@ -35,7 +35,8 @@ sim_instantiate_particles :: proc(
 
 			particles[y * num_particles_side_int + x] = new_particle(
 				position = position + Vec2f{f32(x) * padding, f32(y) * padding},
-				// velocity = (Vec2f{(rand.float32() * 2 - 1), rand.float32() * 2 - 1} * MAX_VELOCITY_MODULUS),
+				// velocity = (Vec2f{(rand.float32() * 2 - 1), rand.float32() * 2 - 1} *
+				// 	MAX_VELOCITY_MODULUS),
 			)
 		}
 	}
@@ -47,7 +48,11 @@ sim_apply_gravity :: proc(particles: []Particle, gravity: Vec2f, dt: f32) {
 	}
 }
 
-sim_predict_positions :: proc(particles: []Particle, dt: f32, velocity_damping: f32 = 1.0) {
+sim_predict_positions :: proc(
+	particles: []Particle,
+	dt: f32,
+	velocity_damping: f32 = VELOCITY_DAMPING,
+) {
 	for &particle in particles {
 		particle.prev_position = particle.position
 		position_delta := particle.velocity * dt * velocity_damping
@@ -86,8 +91,18 @@ sim_world_bound_collisions_resolve :: proc(particles: []Particle, world_size: Ve
 	}
 }
 
-sim_update :: proc(simulation: ^Simulation, dt: f32, world_size: Vec2f) {
-	sim_apply_gravity(simulation.particles, GRAVITY, dt)
+sim_update :: proc(
+	simulation: ^Simulation,
+	dt: f32,
+	world_size: Vec2f,
+	interact_position: Vec2f = Vec2f{-1, -1},
+) {
+	gravity_vector := GRAVITY
+	if interact_position.x != -1 && interact_position.y != -1 {
+		gravity_vector = get_gravity(interact_position, world_size)
+	}
+
+	sim_apply_gravity(simulation.particles, gravity_vector, dt)
 
 	sim_predict_positions(simulation.particles, dt)
 
@@ -102,6 +117,13 @@ sim_update :: proc(simulation: ^Simulation, dt: f32, world_size: Vec2f) {
 	sim_compute_next_velocity(simulation.particles, dt)
 }
 
+get_gravity :: proc(origin: Vec2f, world_size: Vec2f = WORLD_SIZE) -> Vec2f {
+	center := world_size / 2
+	diff := origin - center
+	return linalg.normalize(diff)
+
+}
+
 double_density_relaxation :: proc(simulation: ^Simulation, dt: f32) {
 
 	for &particle, i in simulation.particles {
@@ -113,7 +135,7 @@ double_density_relaxation :: proc(simulation: ^Simulation, dt: f32) {
 		}
 		grid_init_neighbours_iterator(&iter, particle.position)
 
-		// Density calculation
+		// Density calculation 
 		for has_more, neighbour_i := grid_iterator_next(&iter);
 		    has_more;
 		    has_more, neighbour_i = grid_iterator_next(&iter) {
@@ -138,6 +160,7 @@ double_density_relaxation :: proc(simulation: ^Simulation, dt: f32) {
 		pressure := K * (density - REST_DENSITY)
 		pressure_near := K_NEAR * density_near
 		particle_displacement := Vec2f{}
+
 
 		grid_reset_neighbours_iterator(&iter)
 
@@ -169,6 +192,19 @@ double_density_relaxation :: proc(simulation: ^Simulation, dt: f32) {
 			particle_displacement -= displacement * 0.5
 		}
 		particle.position += particle_displacement
+
+		pressure_color_ratio_regular := math.clamp(
+			math.pow((3 * math.abs(pressure)) / REST_DENSITY, 6),
+			0,
+			0.5,
+		)
+
+		particle.color = rl.Color {
+			u8(pressure_color_ratio_regular * 255),
+			u8(pressure_color_ratio_regular * 255),
+			255,
+			255,
+		}
 	}
 }
 
