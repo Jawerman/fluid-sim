@@ -4,11 +4,11 @@ import "core:math"
 import "core:mem"
 import "core:slice"
 
-// PRIME_1 :: 6614058611
-// PRIME_2 :: 7528850467
+PRIME_1 :: 661401
+PRIME_2 :: 752887
 
-PRIME_1 :: 73856093
-PRIME_2 :: 19349663
+// PRIME_1 :: 73856093
+// PRIME_2 :: 19349663
 
 HashGrid :: struct {
 	cellsize:                     int,
@@ -34,14 +34,42 @@ HashGridIterator :: struct {
 	_particles_indices:       [9][]int,
 }
 
+AddedHash :: struct {
+	hash:   int,
+	coords: Vec2i,
+}
+
 grid_init_neighbours_iterator :: proc(iter: ^HashGridIterator, position: Vec2f) {
 	coords := grid_coords_from_position(position, iter.hash_grid.cellsize)
 	index := 0
 
+	added_hashes := [9]AddedHash{}
+	slice.fill(added_hashes[:], AddedHash{hash = -1, coords = Vec2i{0, 0}})
+
 	for i in -1 ..= 1 {
-		for j in -1 ..= 1 {
+		loop: for j in -1 ..= 1 {
 			neighbour_hash := grid_coords_to_hash(coords + Vec2i{i, j}, iter.hash_grid.size)
 			if neighbour_hash < 0 || neighbour_hash >= len(iter.hash_grid.cell_indices) do continue
+
+			for added_hash in added_hashes {
+				if added_hash.hash == neighbour_hash {
+					// log.log(
+					// 	.Warning,
+					// 	"Neighbour hash collision",
+					// 	neighbour_hash,
+					// 	added_hash.hash,
+					// 	coords + Vec2i{i, j},
+					// 	added_hash.coords,
+					// )
+					continue loop
+				}
+			}
+
+			added_hashes[index] = AddedHash {
+				hash   = neighbour_hash,
+				coords = coords + Vec2i{i, j},
+			}
+
 			iter._particles_indices[index] = grid_get_cell_indices_slice(
 				iter.hash_grid,
 				neighbour_hash,
@@ -50,6 +78,12 @@ grid_init_neighbours_iterator :: proc(iter: ^HashGridIterator, position: Vec2f) 
 		}
 	}
 	iter.particles_indices = iter._particles_indices[:index]
+	grid_reset_neighbours_iterator(iter)
+}
+
+grid_reset_neighbours_iterator :: proc(iter: ^HashGridIterator) {
+	iter.current_cell = 0
+	iter.current_particle_in_cell = 0
 }
 
 grid_iterator_next :: proc(iter: ^HashGridIterator) -> (has_more: bool, particle_index: int) {
@@ -87,6 +121,10 @@ grid_fill_cell_indices :: proc(grid_hash: ^HashGrid, particles: []Particle) {
 	min_hash := len(grid_hash.cell_indices) - 1
 	for &particle in particles {
 		hash := grid_hash_from_position(particle.position, grid_hash.cellsize, grid_hash.size)
+		if (hash < 0 || hash >= len(grid_hash.cell_indices)) {
+			log.log(.Error, "Hash out of bounds", hash, particle)
+			panic("Hash out of bounds")
+		}
 		grid_hash.cell_indices[hash] += 1
 		if hash > max_hash do max_hash = hash
 		if hash < min_hash do min_hash = hash
@@ -144,5 +182,5 @@ grid_coords_to_hash :: proc(
 	prime1: int = PRIME_1,
 	prime2: int = PRIME_2,
 ) -> int {
-	return (position.x * prime1 ~ position.y * prime2) % size
+	return math.abs(position.x * prime1 ~ position.y * prime2) % size
 }

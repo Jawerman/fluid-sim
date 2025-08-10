@@ -46,7 +46,7 @@ main :: proc() {
 	particles := [PARTICLES_SQUARE_SIDE * PARTICLES_SQUARE_SIDE]Particle{}
 
 	// TODO: hay que liberar la memoria reservada, se puede usar una arena
-	sim := sim_init(NUM_PARTICLES, CELL_SIZE, NUM_CELLS)
+	sim := sim_init(NUM_PARTICLES, INTERACTION_RADIUS, NUM_CELLS)
 
 	particles_square_size: f32 = (PARTICLES_SQUARE_SIDE - 1) * PARTICLE_PADDING
 
@@ -108,7 +108,9 @@ main :: proc() {
 
 			if dt > 0 {
 				// TODO: Lo mismo hay que mover el WORLD_SIZE dentro de la simulación
-				sim_update(&sim, dt, WORLD_SIZE)
+
+				// sim_update(&sim, 0.3, WORLD_SIZE)
+				sim_update(&sim, dt * 10, WORLD_SIZE)
 			}
 		}
 
@@ -129,7 +131,7 @@ main :: proc() {
 
 			rl.ClearBackground(rl.DARKGRAY)
 
-			sim_colorize_neighbours(&sim, mouse_pos, rl.RED)
+			// sim_colorize_neighbours(&sim, mouse_pos, rl.RED)
 			sim_draw(sim.particles, particle_texture.texture)
 		}
 
