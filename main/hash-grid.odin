@@ -83,13 +83,17 @@ grid_fill_cell_indices :: proc(grid_hash: ^HashGrid, particles: []Particle) {
 	slice.zero(grid_hash.cell_indices)
 
 	// indices tiene inicialmente la cuenta de elementos que hay en la celda
+	max_hash := 0
+	min_hash := len(grid_hash.cell_indices) - 1
 	for &particle in particles {
 		hash := grid_hash_from_position(particle.position, grid_hash.cellsize, grid_hash.size)
 		grid_hash.cell_indices[hash] += 1
+		if hash > max_hash do max_hash = hash
+		if hash < min_hash do min_hash = hash
 	}
 
 	// indices ahora tiene el indice donde acaba cada celda
-	for i in 1 ..< len(grid_hash.cell_indices) {
+	for i in min_hash + 1 ..= max_hash {
 		grid_hash.cell_indices[i] += grid_hash.cell_indices[i - 1]
 	}
 }

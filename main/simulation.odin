@@ -6,10 +6,8 @@ import "core:math/rand"
 
 import rl "vendor:raylib"
 
-MAX_VELOCITY_MODULUS :: 100
-
 Simulation :: struct {
-	// PERF: Podrías ser un SOA
+	// PERF: Podría ser un SOA
 	particles: []Particle,
 	hash_grid: HashGrid,
 }
@@ -24,7 +22,7 @@ sim_init :: proc(num_particles, cellsize, num_cells: int) -> Simulation {
 sim_instantiate_particles :: proc(
 	particles: []Particle,
 	position: Vec2f = Vec2f{0, 0},
-	padding: f32 = 15.0,
+	padding: f32 = PARTICLE_PADDING,
 ) {
 	num_particles_side := math.sqrt(f32(len(particles)))
 	// we are gonna draw a rectangle of particles so the number of particles has to be a square
@@ -37,12 +35,17 @@ sim_instantiate_particles :: proc(
 
 			particles[y * num_particles_side_int + x] = new_particle(
 				position = position + Vec2f{f32(x) * padding, f32(y) * padding},
-				velocity = (Vec2f{(rand.float32() * 2 - 1), rand.float32() * 2 - 1} *
-					MAX_VELOCITY_MODULUS),
+				// velocity = (Vec2f{(rand.float32() * 2 - 1), rand.float32() * 2 - 1} * MAX_VELOCITY_MODULUS),
 			)
 		}
 	}
 
+}
+
+sim_apply_gravity :: proc(particles: []Particle, gravity: Vec2f, dt: f32) {
+	for &particle in particles {
+		particle.velocity += gravity * dt
+	}
 }
 
 sim_colorize_neighbours :: proc(simulation: ^Simulation, position: Vec2f, color: rl.Color) {
@@ -84,31 +87,59 @@ sim_compute_next_velocity :: proc(particles: []Particle, dt: f32) {
 	}
 }
 
+// sim_world_bound_collisions_resolve :: proc(particles: []Particle, world_size: Vec2f) {
+// 	for &particle in particles {
+// 		if particle.position.x < 0 || particle.position.x > world_size.x {
+// 			particle.velocity.x = -particle.velocity.x
+// 		}
+// 		if particle.position.y < 0 || particle.position.y > world_size.y {
+// 			particle.velocity.y = -particle.velocity.y
+// 		}
+// 		particle.position = Vec2f {
+// 			math.clamp(particle.position.x, 0, world_size.x),
+// 			math.clamp(particle.position.y, 0, world_size.y),
+// 		}
+// 	}
+// }
+
 sim_world_bound_collisions_resolve :: proc(particles: []Particle, world_size: Vec2f) {
 	for &particle in particles {
-		if particle.position.x < 0 || particle.position.x > world_size.x {
-			particle.velocity.x = -particle.velocity.x
+		particle_out_of_bounds :=
+			particle.position.x < 0 ||
+			particle.position.x > world_size.x ||
+			particle.position.y < 0 ||
+			particle.position.y > world_size.y
+
+		if particle_out_of_bounds {
+			particle.position = Vec2f {
+				math.clamp(particle.position.x, 0, world_size.x),
+				math.clamp(particle.position.y, 0, world_size.y),
+			}
+
+			particle.prev_position = particle.position
 		}
-		if particle.position.y < 0 || particle.position.y > world_size.y {
-			particle.velocity.y = -particle.velocity.y
-		}
-		particle.position = Vec2f {
-			math.clamp(particle.position.x, 0, world_size.x),
-			math.clamp(particle.position.y, 0, world_size.y),
-		}
+
 	}
+}
+
+sim_update :: proc(simulation: ^Simulation, dt: f32, world_size: Vec2f) {
+	sim_apply_gravity(simulation.particles, GRAVITY, dt)
+
+	sim_predict_positions(simulation.particles, dt)
+
+	grid_add_particles(&simulation.hash_grid, simulation.particles)
+
+	// double_density_relaxation
+
+	sim_world_bound_collisions_resolve(simulation.particles, world_size)
+
+	sim_compute_next_velocity(simulation.particles, dt)
 
 }
 
-sim_update :: proc(particles: []Particle, dt: f32, world_size: Vec2f) {
-	sim_predict_positions(particles, dt)
-	sim_compute_next_velocity(particles, dt)
-	sim_world_bound_collisions_resolve(particles, world_size)
-}
 
-
-sim_draw :: proc(particles: []Particle) {
+sim_draw :: proc(particles: []Particle, texture: rl.Texture2D) {
 	for &particle in particles {
-		rl.DrawCircleV(particle.position, PARTICLE_RADIUS, particle.color)
+		rl.DrawTextureV(texture, particle.position - PARTICLE_CENTER_OFFSET, particle.color)
 	}
 }
